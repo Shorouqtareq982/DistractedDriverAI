@@ -44,7 +44,7 @@ CLASS_DESCRIPTIONS = {
     'c9': 'talking to passenger'
 }
 
-st.set_page_config(page_title="Distracted Driver Detection", layout="wide", page_icon="🚗")
+st.set_page_config(page_title="Distracted Driver Detection", layout="wide")
 
 @st.cache_resource
 def load_model_once():
@@ -77,27 +77,27 @@ def is_image_file(filename: str):
 def make_montage(images: List[Image.Image], thumb_size=(180,130), cols=5, bg_color=(245,245,245)):
     n = len(images)
     rows = (n + cols - 1) // cols
-    pad = 10
-    caption_h = 22
+    pad = 8
+    caption_h = 20
     W = cols * (thumb_size[0] + pad) + pad
     H = rows * (thumb_size[1] + caption_h + pad) + pad
     montage = Image.new("RGB", (W, H), bg_color)
     draw = ImageDraw.Draw(montage)
     try:
-        font = ImageFont.truetype("arial.ttf", 13)
+        font = ImageFont.truetype("arial.ttf", 12)
     except:
         font = ImageFont.load_default()
     for idx, img in enumerate(images):
         r, c = divmod(idx, cols)
         x = pad + c * (thumb_size[0] + pad)
         y = pad + r * (thumb_size[1] + caption_h + pad)
-        thumb = img.convert("RGB").resize(thumb_size) if img else Image.new("RGB", thumb_size, (230,230,230))
+        thumb = img.convert("RGB").resize(thumb_size) if img else Image.new("RGB", thumb_size, (220,220,220))
         montage.paste(thumb, (x, y))
         cls_name = CLASS_DESCRIPTIONS[CLASS_NAMES[idx]]
         bbox = draw.textbbox((0, 0), cls_name, font=font)
         text_w = bbox[2] - bbox[0]
         tx = x + max((thumb_size[0] - text_w)//2, 0)
-        draw.text((tx, y + thumb_size[1] + 3), cls_name, fill=(50,50,50), font=font)
+        draw.text((tx, y + thumb_size[1] + 2), cls_name, fill=(0,0,0), font=font)
     return montage
 
 def batch_predict_from_pil_list(images: List[Tuple[str, Image.Image]]):
@@ -113,17 +113,17 @@ def batch_predict_from_pil_list(images: List[Tuple[str, Image.Image]]):
             sample_images[pred_idx].append(img.copy())
     df = pd.DataFrame(rows)
     counts = {CLASS_DESCRIPTIONS[cls]: sum(r["predicted_class"] == CLASS_DESCRIPTIONS[cls] for r in rows) for cls in CLASS_NAMES}
-    fig, ax = plt.subplots(figsize=(7,3))
+    fig, ax = plt.subplots(figsize=(6,3))
     colors = plt.cm.Pastel1(np.linspace(0, 1, len(counts)))
     bars = ax.bar(counts.keys(), counts.values(), color=colors, edgecolor='black', linewidth=0.4)
     for bar in bars:
         ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.05, f'{int(bar.get_height())}', ha='center', va='bottom', fontsize=8)
     ax.grid(axis='y', linestyle='--', alpha=0.5)
-    ax.set_facecolor((0.97, 0.97, 0.97))
     ax.set_ylabel("Count", fontsize=9)
     ax.set_title("Predictions per Class", fontsize=12, weight='bold')
     ax.set_xticklabels(counts.keys(), rotation=35, ha="right", fontsize=8)
-    fig.patch.set_facecolor((0.98, 0.98, 0.98))
+    fig.patch.set_facecolor('#f9f9f9')
+    ax.set_facecolor('#f9f9f9')
     fig.tight_layout()
     montage = make_montage([sample_images[i][0] if sample_images[i] else None for i in range(len(CLASS_NAMES))])
     return df, fig, montage
@@ -158,7 +158,7 @@ with tabs[0]:
     uploaded = st.file_uploader("Upload an image", type=["png","jpg","jpeg","bmp","gif"], key="single_image")
     if uploaded:
         img = Image.open(uploaded).convert("RGB")
-        st.image(img, caption="Input Image", width=300)
+        st.image(img, caption="Input Image", width=280)
         preds = predict_single_pil(img)
         df_top = pd.DataFrame(list(preds.items()), columns=["Class", "Probability"])
         df_top["Probability"] = df_top["Probability"].map(lambda x: f"{x:.4f}")
@@ -170,12 +170,10 @@ with tabs[1]:
         df, fig, montage = handle_zip_upload(uploaded_zip)
         st.success(f"Processed {len(df)} images.")
         st.download_button("Download CSV", data=df.to_csv(index=False).encode('utf-8'), file_name="predictions.csv", mime="text/csv", key="zip_csv")
-        col_center = st.columns([1,2,1])[1]
-        with col_center:
-            st.pyplot(fig)
-            buf = io.BytesIO()
-            montage.save(buf, format="JPEG")
-            st.image(buf.getvalue(), caption="Sample per Class (montage)")
+        st.columns([1,6,1])[1].pyplot(fig)
+        buf = io.BytesIO()
+        montage.save(buf, format="JPEG")
+        st.columns([1,6,1])[1].image(buf.getvalue(), caption="Sample per Class (montage)")
 
 with tabs[2]:
     uploaded_files = st.file_uploader("Upload multiple images", type=["png","jpg","jpeg","bmp","gif"], accept_multiple_files=True, key="multi_files")
@@ -184,10 +182,7 @@ with tabs[2]:
         df, fig, montage = batch_predict_from_pil_list(images)
         st.success(f"Processed {len(df)} images.")
         st.download_button("Download CSV", data=df.to_csv(index=False).encode('utf-8'), file_name="predictions.csv", mime="text/csv", key="multi_csv")
-        col_center = st.columns([1,2,1])[1]
-        with col_center:
-            st.pyplot(fig)
-            buf = io.BytesIO()
-            montage.save(buf, format="JPEG")
-            st.image(buf.getvalue(), caption="Sample per Class (montage)")
-
+        st.columns([1,6,1])[1].pyplot(fig)
+        buf = io.BytesIO()
+        montage.save(buf, format="JPEG")
+        st.columns([1,6,1])[1].image(buf.getvalue(), caption="Sample per Class (montage)")
