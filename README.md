@@ -46,4 +46,27 @@ The dataset was split into training, validation, and test sets, and all models w
 ### 📊 Accuracy Comparison Chart
 ![Model Accuracy Comparison](assets/comparison.png)
 
+## 🚀 Streamlit App Demo
+
+We deployed our trained model in an interactive **Streamlit** web application.  
+Users can upload an image or a batch of images (ZIP), and the app predicts the driver's activity.
+
+🔗 **Try it here:** [Distracted Driver Detection App](https://your-streamlit-link.streamlit.app/)
+
+---
+
+### 🖼 App Screenshots
+
+#### 1️⃣ Single Image Prediction
+<img src="assets/single.png" width="600" alt="Single Image Prediction">
+
+#### 2️⃣ Batch ZIP Prediction
+<img src="assets/batch1.png" width="450" alt="Batch ZIP Prediction 1">
+<img src="assets/batch2.png" width="450" alt="Batch ZIP Prediction 2">
+
+#### 3️⃣ Prediction Results Visualization
+<img src="assets/Batchs1.png" width="450" alt="Prediction Chart 1">
+<img src="assets/batch2.png" width="450" alt="Prediction Chart 2">
+
+
 > The chart above visualizes the accuracy of each model, making it easier to compare performance at a glance.
