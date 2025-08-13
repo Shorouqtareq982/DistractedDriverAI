@@ -113,7 +113,7 @@ def batch_predict_from_pil_list(images: List[Tuple[str, Image.Image]]):
             sample_images[pred_idx].append(img.copy())
     df = pd.DataFrame(rows)
     counts = {CLASS_DESCRIPTIONS[cls]: sum(r["predicted_class"] == CLASS_DESCRIPTIONS[cls] for r in rows) for cls in CLASS_NAMES}
-    fig, ax = plt.subplots(figsize=(12,5))
+    fig, ax = plt.subplots(figsize=(8,4))
     colors = plt.cm.Pastel1(np.linspace(0, 1, len(counts)))
     bars = ax.bar(counts.keys(), counts.values(), color=colors, edgecolor='black', linewidth=0.6)
     for bar in bars:
