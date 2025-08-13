@@ -1,6 +1,15 @@
-streamlit
-tensorflow
-numpy
-pillow
-matplotlib
-gdown
+# Core dependencies
+tensorflow>=2.15.0
+numpy>=1.23.0
+pandas>=1.5.0
+pillow>=9.0.0
+matplotlib>=3.6.0
+
+# For downloading from Google Drive
+gdown>=4.7.0
+
+# For handling HDF5 models
+h5py>=3.8.0
+
+# For Streamlit app
+streamlit>=1.25.0
