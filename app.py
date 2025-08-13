@@ -8,84 +8,180 @@ Original file is located at
 """
 
 import os
-import streamlit as st
+import io
+import zipfile
+import tempfile
+import shutil
+from pathlib import Path
+from typing import List, Tuple
+
 import numpy as np
-from PIL import Image
+import pandas as pd
+from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
-from collections import Counter
-import gdown
+import streamlit as st
+
+from tensorflow.keras.preprocessing.image import img_to_array
 from tensorflow.keras.models import load_model
 
-# ---------- CONFIGURATION ----------
-MODEL_URL = "https://drive.google.com/uc?export=download&id=1j9WY-YbR4G-aRuv69C15WvF2CosN9KQ8"
-MODEL_PATH = "model.keras"
+MODEL_PATH = "resNet_model_SGD.keras"
 IMAGE_SIZE = (224, 224)
-CLASS_DESCRIPTIONS = [
-    'safe driving', 'texting right', 'talking on phone right',
-    'texting left', 'talking on phone left', 'operating radio',
-    'drinking', 'reaching behind', 'hair and makeup', 'talking to passenger'
-]
 TOP_K = 3
-# -----------------------------------
+SAMPLES_PER_CLASS = 1
+
+CLASS_NAMES = ['c0','c1','c2','c3','c4','c5','c6','c7','c8','c9']
+CLASS_DESCRIPTIONS = {
+    'c0': 'safe driving',
+    'c1': 'texting right',
+    'c2': 'talking on phone right',
+    'c3': 'texting left',
+    'c4': 'talking on phone left',
+    'c5': 'operating radio',
+    'c6': 'drinking',
+    'c7': 'reaching behind',
+    'c8': 'hair and makeup',
+    'c9': 'talking to passenger'
+}
+
+st.set_page_config(page_title="Distracted Driver Detection", layout="wide")
 
 @st.cache_resource(show_spinner=False)
-def load_cnn_model():
-    if not os.path.exists(MODEL_PATH):
-        st.info("Downloading model from Google Drive...")
-        gdown.download(MODEL_URL, MODEL_PATH, quiet=False)
-    model = load_model(MODEL_PATH)
-    st.success("Model loaded successfully!")
-    return model
+def load_model_cached(path):
+    try:
+        return load_model(path)
+    except Exception as e:
+        st.error(f"Failed to load model: {e}")
+        return None
 
-model = load_cnn_model()
+model = load_model_cached(MODEL_PATH)
 
-st.title("Distracted Driver Detection")
-st.markdown("Upload images (single or multiple) to get predictions and statistics.")
+def preprocess_pil(img_pil: Image.Image):
+    img = img_pil.convert("RGB").resize(IMAGE_SIZE)
+    arr = img_to_array(img) / 255.0
+    arr = np.expand_dims(arr, axis=0)
+    return arr
 
-uploaded = st.file_uploader(
-    "Upload driver images",
-    type=['png', 'jpg', 'jpeg'],
-    accept_multiple_files=True
-)
+def predict_single_pil(img_pil: Image.Image):
+    if model is None:
+        return {"error": "Model not loaded."}
+    preds = model.predict(preprocess_pil(img_pil))[0]
+    top_idx = preds.argsort()[::-1][:TOP_K]
+    return {CLASS_DESCRIPTIONS[CLASS_NAMES[i]]: float(preds[i]) for i in top_idx}
 
-if uploaded:
-    st.subheader("Predictions")
-    counter = Counter()
+def is_image_file(filename: str):
+    return filename.lower().endswith((".png", ".jpg", ".jpeg", ".bmp", ".gif"))
 
-    for file in uploaded:
-        img = Image.open(file).convert("RGB")
-        st.image(img, caption="Input Image", use_column_width=False, width=250)
+def make_montage(images: List[Image.Image], thumb_size=(224,224), cols=5, bg_color=(255,255,255)):
+    n = len(images)
+    rows = (n + cols - 1) // cols
+    pad = 10
+    caption_h = 24
+    W = cols * (thumb_size[0] + pad) + pad
+    H = rows * (thumb_size[1] + caption_h + pad) + pad
+    montage = Image.new("RGB", (W, H), bg_color)
+    draw = ImageDraw.Draw(montage)
+    try:
+        font = ImageFont.truetype("arial.ttf", 14)
+    except:
+        font = ImageFont.load_default()
+    for idx, img in enumerate(images):
+        r, c = divmod(idx, cols)
+        x = pad + c * (thumb_size[0] + pad)
+        y = pad + r * (thumb_size[1] + caption_h + pad)
+        thumb = img.convert("RGB").resize(thumb_size) if img else Image.new("RGB", thumb_size, (240,240,240))
+        montage.paste(thumb, (x, y))
+        cls_name = CLASS_DESCRIPTIONS[CLASS_NAMES[idx]]
+        text_w, _ = draw.textsize(cls_name, font=font)
+        tx = x + max((thumb_size[0] - text_w)//2, 0)
+        draw.text((tx, y + thumb_size[1] + 4), cls_name, fill=(0,0,0), font=font)
+    return montage
 
-        arr = np.expand_dims(np.array(img.resize(IMAGE_SIZE)) / 255.0, axis=0)
-        preds = model.predict(arr, verbose=0)[0]
+def batch_predict_from_pil_list(images: List[Tuple[str, Image.Image]]):
+    if model is None:
+        raise RuntimeError("Model not loaded.")
+    rows = []
+    sample_images = {i: [] for i in range(len(CLASS_NAMES))}
+    for name, img in images:
+        preds = model.predict(preprocess_pil(img))[0]
+        pred_idx = int(np.argmax(preds))
+        row = {CLASS_DESCRIPTIONS[CLASS_NAMES[i]]: float(preds[i]) for i in range(len(CLASS_NAMES))}
+        row.update({"image_name": name, "predicted_class": CLASS_DESCRIPTIONS[CLASS_NAMES[pred_idx]]})
+        rows.append(row)
+        if len(sample_images[pred_idx]) < SAMPLES_PER_CLASS:
+            sample_images[pred_idx].append(img.copy())
+    df = pd.DataFrame(rows)
+    counts = {CLASS_DESCRIPTIONS[cls]: sum(r["predicted_class"] == CLASS_DESCRIPTIONS[cls] for r in rows) for cls in CLASS_NAMES}
+    fig, ax = plt.subplots(figsize=(12,5))
+    colors = [plt.get_cmap("tab10")(i) for i in range(len(counts))]
+    bars = ax.bar(counts.keys(), counts.values(), color=colors, edgecolor='black', linewidth=0.6)
+    for bar in bars:
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.05, f'{int(bar.get_height())}', ha='center', va='bottom', fontsize=9)
+    ax.grid(axis='y', linestyle='--', alpha=0.5)
+    ax.set_ylabel("Count", fontsize=11)
+    ax.set_title("Predictions per Class", fontsize=14, weight='bold')
+    ax.set_xticklabels(counts.keys(), rotation=35, ha="right", fontsize=10)
+    fig.tight_layout()
+    montage = make_montage([sample_images[i][0] if sample_images[i] else None for i in range(len(CLASS_NAMES))], thumb_size=(160,120), cols=5)
+    return df, fig, montage
 
-        top_idx = np.argsort(preds)[::-1][:TOP_K]
-        top_classes = [CLASS_DESCRIPTIONS[i] for i in top_idx]
-        top_probs = preds[top_idx]
+def handle_zip_upload(uploaded_zip):
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+    tmp.write(uploaded_zip.read())
+    tmp.close()
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        with zipfile.ZipFile(tmp.name, 'r') as z:
+            z.extractall(tmp_dir)
+        image_paths = [os.path.join(root, f) for root, _, files in os.walk(tmp_dir) for f in files if is_image_file(f)]
+        images = [(os.path.basename(p), Image.open(p).convert("RGB")) for p in sorted(image_paths)]
+        return batch_predict_from_pil_list(images)
+    finally:
+        os.unlink(tmp.name)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
-        counter[top_classes[0]] += 1
+# UI
+col1, col2 = st.columns([1, 4])
+with col1:
+    if os.path.exists("assets/img5.PNG"):
+        st.image("assets/img5.PNG", use_column_width=True)
+with col2:
+    st.title("Distracted Driver Detection (ResNet)")
+    st.markdown("Predict driver activity from single images or batch uploads.")
 
-        fig, ax = plt.subplots()
-        ax.barh(
-            top_classes[::-1],
-            top_probs[::-1],
-            color=plt.get_cmap("tab10").colors
-        )
-        for i, v in enumerate(top_probs[::-1]):
-            ax.text(v + 0.01, i, f"{v:.2f}", va='center', fontsize=9)
-        ax.set_xlabel("Probability")
-        ax.set_title("Top-3 Predictions")
+tabs = st.tabs(["Single Image", "Batch (ZIP)", "Batch (Multiple Files)"])
+
+with tabs[0]:
+    uploaded = st.file_uploader("Upload an image", type=["png","jpg","jpeg","bmp","gif"])
+    if uploaded:
+        img = Image.open(uploaded).convert("RGB")
+        st.image(img, caption="Input Image", width=300)
+        preds = predict_single_pil(img)
+        if "error" in preds:
+            st.error(preds["error"])
+        else:
+            df_top = pd.DataFrame(list(preds.items()), columns=["Class", "Probability"])
+            df_top["Probability"] = df_top["Probability"].map(lambda x: f"{x:.4f}")
+            st.table(df_top)
+
+with tabs[1]:
+    uploaded_zip = st.file_uploader("Upload ZIP containing images", type=["zip"])
+    if uploaded_zip:
+        df, fig, montage = handle_zip_upload(uploaded_zip)
+        st.success(f"Processed {len(df)} images.")
+        st.download_button("Download CSV", data=df.to_csv(index=False).encode('utf-8'), file_name="predictions.csv", mime="text/csv")
         st.pyplot(fig)
+        buf = io.BytesIO()
+        montage.save(buf, format="JPEG")
+        st.image(buf.getvalue(), caption="Sample per Class (montage)")
 
-    st.subheader("Aggregation: Prediction Counts")
-    fig2, ax2 = plt.subplots(figsize=(8, 4))
-    classes = list(counter.keys())
-    counts = list(counter.values())
-    colors = plt.get_cmap("tab10").colors[:len(classes)]
-    ax2.bar(classes, counts, color=colors)
-    for idx, val in enumerate(counts):
-        ax2.text(idx, val + 0.1, str(val), ha='center', fontsize=10)
-    ax2.set_ylabel("Number of Images")
-    ax2.set_xticklabels(classes, rotation=45, ha='right', fontsize=9)
-    ax2.grid(axis='y', linestyle='--', alpha=0.6)
-    st.pyplot(fig2)
+with tabs[2]:
+    uploaded_files = st.file_uploader("Upload multiple images", type=["png","jpg","jpeg","bmp","gif"], accept_multiple_files=True)
+    if uploaded_files:
+        images = [(f.name, Image.open(f).convert("RGB")) for f in uploaded_files]
+        df, fig, montage = batch_predict_from_pil_list(images)
+        st.success(f"Processed {len(df)} images.")
+        st.download_button("Download CSV", data=df.to_csv(index=False).encode('utf-8'), file_name="predictions.csv", mime="text/csv")
+        st.pyplot(fig)
+        buf = io.BytesIO()
+        montage.save(buf, format="JPEG")
+        st.image(buf.getvalue(), caption="Sample per Class (montage)")
