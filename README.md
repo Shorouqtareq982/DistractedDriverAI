@@ -61,12 +61,12 @@ Users can upload an image or a batch of images (ZIP), and the app predicts the d
 <img src="assets/single.png" width="600" alt="Single Image Prediction">
 
 #### 2️⃣ Batch ZIP Prediction
-<img src="assets/batch1.png" width="450" alt="Batch ZIP Prediction 1">
-<img src="assets/batch2.png" width="450" alt="Batch ZIP Prediction 2">
+<img src="assets/Batch1.png" width="450" alt="Batch ZIP Prediction 1">
+<img src="assets/Batch2.png" width="450" alt="Batch ZIP Prediction 2">
 
 #### 3️⃣ Prediction Results Visualization
 <img src="assets/Batchs1.png" width="450" alt="Prediction Chart 1">
-<img src="assets/batch2.png" width="450" alt="Prediction Chart 2">
+<img src="assets/Batchs2.png" width="450" alt="Prediction Chart 2">
 
 
 > The chart above visualizes the accuracy of each model, making it easier to compare performance at a glance.
