@@ -114,7 +114,7 @@ def batch_predict_from_pil_list(images: List[Tuple[str, Image.Image]]):
     df = pd.DataFrame(rows)
     counts = {CLASS_DESCRIPTIONS[cls]: sum(r["predicted_class"] == CLASS_DESCRIPTIONS[cls] for r in rows) for cls in CLASS_NAMES}
     fig, ax = plt.subplots(figsize=(12,5))
-    colors = [plt.get_cmap("tab10")(i) for i in range(len(counts))]
+    colors = plt.cm.Pastel1(np.linspace(0, 1, len(counts)))
     bars = ax.bar(counts.keys(), counts.values(), color=colors, edgecolor='black', linewidth=0.6)
     for bar in bars:
         ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.05, f'{int(bar.get_height())}', ha='center', va='bottom', fontsize=9)
@@ -153,7 +153,7 @@ with col2:
 tabs = st.tabs(["Single Image", "Batch (ZIP)", "Batch (Multiple Files)"])
 
 with tabs[0]:
-    uploaded = st.file_uploader("Upload an image", type=["png","jpg","jpeg","bmp","gif"])
+    uploaded = st.file_uploader("Upload an image", type=["png","jpg","jpeg","bmp","gif"], key="single_image")
     if uploaded:
         img = Image.open(uploaded).convert("RGB")
         st.image(img, caption="Input Image", width=300)
@@ -163,24 +163,25 @@ with tabs[0]:
         st.table(df_top)
 
 with tabs[1]:
-    uploaded_zip = st.file_uploader("Upload ZIP containing images", type=["zip"])
+    uploaded_zip = st.file_uploader("Upload ZIP containing images", type=["zip"], key="zip_upload")
     if uploaded_zip:
         df, fig, montage = handle_zip_upload(uploaded_zip)
         st.success(f"Processed {len(df)} images.")
-        st.download_button("Download CSV", data=df.to_csv(index=False).encode('utf-8'), file_name="predictions.csv", mime="text/csv")
+        st.download_button("Download CSV", data=df.to_csv(index=False).encode('utf-8'), file_name="predictions.csv", mime="text/csv", key="zip_csv")
         st.pyplot(fig)
         buf = io.BytesIO()
         montage.save(buf, format="JPEG")
         st.image(buf.getvalue(), caption="Sample per Class (montage)")
 
 with tabs[2]:
-    uploaded_files = st.file_uploader("Upload multiple images", type=["png","jpg","jpeg","bmp","gif"], accept_multiple_files=True)
+    uploaded_files = st.file_uploader("Upload multiple images", type=["png","jpg","jpeg","bmp","gif"], accept_multiple_files=True, key="multi_files")
     if uploaded_files:
         images = [(f.name, Image.open(f).convert("RGB")) for f in uploaded_files]
         df, fig, montage = batch_predict_from_pil_list(images)
         st.success(f"Processed {len(df)} images.")
-        st.download_button("Download CSV", data=df.to_csv(index=False).encode('utf-8'), file_name="predictions.csv", mime="text/csv")
+        st.download_button("Download CSV", data=df.to_csv(index=False).encode('utf-8'), file_name="predictions.csv", mime="text/csv", key="multi_csv")
         st.pyplot(fig)
         buf = io.BytesIO()
         montage.save(buf, format="JPEG")
         st.image(buf.getvalue(), caption="Sample per Class (montage)")
+
