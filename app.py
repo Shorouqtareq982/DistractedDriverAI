@@ -115,7 +115,7 @@ def batch_predict_from_pil_list(images: List[Tuple[str, Image.Image]]):
     counts = {CLASS_DESCRIPTIONS[cls]: sum(r["predicted_class"] == CLASS_DESCRIPTIONS[cls] for r in rows) for cls in CLASS_NAMES}
     fig, ax = plt.subplots(figsize=(8,4))
     colors = plt.cm.Pastel1(np.linspace(0, 1, len(counts)))
-    bars = ax.bar(counts.keys(), counts.values(), color=colors, edgecolor='black', linewidth=0.6)
+    bars = ax.bar(counts.keys(), counts.values(), color=colors, edgecolor='black', linewidth=0.4)
     for bar in bars:
         ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.05, f'{int(bar.get_height())}', ha='center', va='bottom', fontsize=9)
     ax.grid(axis='y', linestyle='--', alpha=0.5)
@@ -123,7 +123,7 @@ def batch_predict_from_pil_list(images: List[Tuple[str, Image.Image]]):
     ax.set_title("Predictions per Class", fontsize=14, weight='bold')
     ax.set_xticklabels(counts.keys(), rotation=35, ha="right", fontsize=10)
     fig.tight_layout()
-    montage = make_montage([sample_images[i][0] if sample_images[i] else None for i in range(len(CLASS_NAMES))], thumb_size=(160,120), cols=5)
+    montage = make_montage([sample_images[i][0] if sample_images[i] else None for i in range(len(CLASS_NAMES))], thumb_size=(200,150), cols=5)
     return df, fig, montage
 
 def handle_zip_upload(uploaded_zip):
