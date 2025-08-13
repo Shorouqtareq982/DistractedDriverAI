@@ -1,10 +1,6 @@
 # DistractedDriverAI
 An interactive CNN-based app for detecting distracted driving activities from images. Supports multiple uploads, fast predictions, and CSV export. Built with Streamlit for road safety analysis and real-time driver behavior monitoring.
 
-
-https://distracteddriverai-czdeatambsdkpupwbvwaee.streamlit.app/
-
-
 This project detects driver states (safe or distracted) using multiple deep learning architectures, and compares their performance to select the best model for deployment.
 
 ---
@@ -51,7 +47,7 @@ The dataset was split into training, validation, and test sets, and all models w
 We deployed our trained model in an interactive **Streamlit** web application.  
 Users can upload an image or a batch of images (ZIP), and the app predicts the driver's activity.
 
-🔗 **Try it here:** [Distracted Driver Detection App](https://your-streamlit-link.streamlit.app/)
+🔗 **Try it here:** [Distracted Driver Detection App]([https://your-streamlit-link.streamlit.app/](https://distracteddriverai-czdeatambsdkpupwbvwaee.streamlit.app/))
 
 ---
 
