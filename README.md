@@ -47,7 +47,7 @@ The dataset was split into training, validation, and test sets, and all models w
 We deployed our trained model in an interactive **Streamlit** web application.  
 Users can upload an image or a batch of images (ZIP), and the app predicts the driver's activity.
 
-🔗 **Try it here:** [Distracted Driver Detection App]([https://your-streamlit-link.streamlit.app/](https://distracteddriverai-czdeatambsdkpupwbvwaee.streamlit.app/))
+🔗 **Try it here:** [Distracted Driver Detection App](https://distracteddriverai-czdeatambsdkpupwbvwaee.streamlit.app/)
 
 ---
 
